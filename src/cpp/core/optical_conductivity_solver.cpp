@@ -467,6 +467,120 @@ void optical_conductivity_solver::get_optical_conductivity_by_kubo(
 }
 
 
+void optical_conductivity_solver::get_static_dielectric_function_by_kubo(
+    base_data &Base_Data, 
+    Matrix<double, 9, 1> &static_dielectric_function
+)
+{
+    int max_num_threads = omp_get_max_threads();
+    int num_threads = 1;
+    int k_openmp = 1;
+
+    if (kpoint_num > max_num_threads)
+    {
+        num_threads = max_num_threads;
+        k_openmp = 1;
+    }
+    else
+    {
+        num_threads = 1;
+        k_openmp = 0;
+    }
+
+    // printf("threads = %d\n", max_num_threads);
+    // printf("k_openmp = %d\n", k_openmp);
+
+    std::vector<Matrix<double, 9, 1>> tem_static_dielectric_function(num_threads);
+    for (auto &i : tem_static_dielectric_function)
+    {
+        i.setZero();
+    }
+
+    MatrixXcd exp_ikR = Base_Data.get_exp_ikR(k_direct_coor);
+    #pragma omp parallel for schedule(static) if(k_openmp)
+    for (int ik = 0; ik < kpoint_num; ++ik)
+    {
+        int tid = omp_get_thread_num();
+
+        // VectorXd static_dielectric_function_ik = VectorXd::Zero(9);
+
+        VectorXd eigenvalues;
+        MatrixXcd eigenvectors;
+        band_structure_solver::get_eigenvalues_eigenvectors_1k(Base_Data, exp_ikR.row(ik), eigenvalues, eigenvectors);
+        std::array<MatrixXcd, 3> velocity_matrix;
+        for (int i = 0; i < 3; ++i)
+        {
+            velocity_matrix[i] = velocity_solver::cal_velocity_1k_base(Base_Data, exp_ikR.row(ik), eigenvalues, eigenvectors, i);
+        }
+
+        int use_occupied_band_num = 0;
+        int basis_num = Base_Data.get_basis_num();
+        if (use_fermi)
+        {
+            for (int ib = 0; ib < basis_num; ++ib)
+            {
+                if (eigenvalues(ib) > this->fermi_energy)
+                {
+                    use_occupied_band_num = ib;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            use_occupied_band_num = this->occupied_band_num;
+        }
+
+        for (int ib_n = 0; ib_n < use_occupied_band_num; ++ib_n) // n is occ
+        {
+            for (int ib_m = use_occupied_band_num; ib_m < basis_num; ++ib_m) // m is unocc
+            {
+                double f_nm = 1.0;
+                double delta_energy = eigenvalues(ib_n) - eigenvalues(ib_m);
+
+                for(int i = 0; i < 3; i++)
+                {
+                    for(int j = 0; j < 3; j++)
+                    {
+                        int index = 3 * i + j;
+                        double vv = (velocity_matrix[i](ib_n, ib_m) * velocity_matrix[j](ib_m, ib_n)).real();
+                        // static_dielectric_function_ik[index] += -2.0 * f_nm / std::pow(delta_energy, 3) * vv;
+                        tem_static_dielectric_function[tid](index) += -2.0 * f_nm / std::pow(delta_energy, 3) * vv;
+                    }
+                }
+            }
+        }
+        
+        // tem_static_dielectric_function[tid] += static_dielectric_function_ik;
+    }
+
+    for (auto &i : tem_static_dielectric_function)
+    {
+        static_dielectric_function += i;
+    }
+
+    // conversion unit
+    double h_divide_e2 = 25812.80745; // ohm
+    double primitive_cell_volume = Base_Data.get_primitiveCell_volume();
+    
+    // The relative dielectric function is unitless, F / (m*s) == (ohm*m)^{-1}
+    double epsilon0 = 8.854187817e-12; // F/m
+    double hbar = 1.05457182e-34; // J*s
+    double eV = 1.60217662e-19; // J
+    double dielectric_unit = hbar / epsilon0 / eV;
+
+    if (nspin == 1)
+    {
+        static_dielectric_function = 2 * static_dielectric_function * TWO_PI / h_divide_e2 / primitive_cell_volume / total_kpoint_num * 1.0e10 * dielectric_unit;
+    }
+    else if (nspin == 4)
+    {
+        static_dielectric_function = static_dielectric_function * TWO_PI / h_divide_e2 / primitive_cell_volume / total_kpoint_num * 1.0e10 * dielectric_unit;
+    }
+
+}
+
+
 void optical_conductivity_solver::construct_T1_T2()
 {
     if (T1_T2_have_values) return;

@@ -1,3 +1,7 @@
+from pyatb import initialize_runtime
+
+initialize_runtime()
+
 from pyatb import RANK, INPUT_PATH, OUTPUT_PATH, RUNNING_LOG, timer
 from pyatb.fermi.fat_band import Fat_Band
 from pyatb.io import read_input
@@ -223,7 +227,8 @@ def main():
         cal_OC = Optical_Conductivity(m_tb)
         cal_OC.calculate_optical_conductivity(fermi_energy, **optical_conductivity_parameters)
         if RANK == 0:
-            cal_OC.print_plot_script()
+            if not optical_conductivity_parameters['static_dielectric_only']:
+                cal_OC.print_plot_script()
 
     if function_switch['ORBITAL_MAGNETIZATION']:
         orbital_magnetization_parameters = INPUT['ORBITAL_MAGNETIZATION']

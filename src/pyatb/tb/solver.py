@@ -197,6 +197,12 @@ class solver:
         self.tb_solver.get_optical_conductivity_by_kubo(nspin, omega_num, domega, start_omega, eta, occupiedNumber, use_fermi, fermi_energy, k_direct_coor, total_kpoint_num, method, optical_conductivity, dielectric_function)
 
         return optical_conductivity, dielectric_function
+    
+    def get_static_dielectric_function(self, nspin, occupiedNumber, k_direct_coor, total_kpoint_num, use_fermi=False, fermi_energy=0.0):
+        static_dielectric_function = np.zeros(9, dtype=float)
+        self.tb_solver.get_static_dielectric_function_by_kubo(nspin, occupiedNumber, use_fermi, fermi_energy, k_direct_coor, total_kpoint_num, static_dielectric_function)
+
+        return static_dielectric_function
 
     def get_shift_current(self, nspin, omega_num, domega, start_omega, smearing_method, eta, occupiedNumber, k_direct_coor, total_kpoint_num, method=1):
         shift_current = np.zeros([18, omega_num], dtype=float)
@@ -220,11 +226,13 @@ class solver:
         self.tb_solver.get_pockels(omega_num, domega, start_omega, fermi_energy, omega1,total_kpoint_num,k_direct_coor, pockels)
 
         return pockels
+
     def get_bcd(self,omega_num, domega, start_omega,total_kpoint_num,k_direct_coor):
         bcd = np.zeros([9, omega_num], dtype=float)
         self.tb_solver.get_bcd(omega_num, domega, start_omega,total_kpoint_num,k_direct_coor, bcd)
 
         return bcd
+
     def get_velocity_matrix(self, k_direct_coor):
         kpoint_num = k_direct_coor.shape[0]
         eigenvalues = np.zeros([kpoint_num, self.basis_num], dtype=float)

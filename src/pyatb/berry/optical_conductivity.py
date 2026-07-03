@@ -44,7 +44,7 @@ class Optical_Conductivity:
                 f.write('\n------------------------------------------------------')
                 f.write('\n\n')
 
-    def set_parameters(self, occ_band, omega, domega, eta, grid, method, use_fermi=False, fermi_energy=0.0, **kwarg):
+    def set_parameters(self, occ_band, omega, domega, eta, grid, method, static_dielectric_only, use_fermi=False, fermi_energy=0.0, **kwarg):
         self.__occ_band = occ_band
         self.__use_fermi = use_fermi
         self.__fermi_energy = fermi_energy
@@ -54,6 +54,7 @@ class Optical_Conductivity:
         self.__omega_num = int((self.__end_omega - self.__start_omega) / domega ) + 1
         self.__eta = eta
         self.__method = method
+        self.__static_dielectric_only = static_dielectric_only
         
         k_start = np.array([0.0, 0.0, 0.0], dtype=float)
         k_vect1 = np.array([1.0, 0.0, 0.0], dtype=float)
@@ -66,57 +67,70 @@ class Optical_Conductivity:
             with open(RUNNING_LOG, 'a') as f:
                 f.write('\nParameter setting : \n')
                 if self.__use_fermi:
-                    f.write(' >> fermi_energy  : %-10.6f\n'%(self.__fermi_energy))
+                    f.write(' >> fermi_energy                  : %-10.6f\n'%(self.__fermi_energy))
                 else:
-                    f.write(' >> occ_band      : %-d\n' % (self.__occ_band))
-                f.write(' >> omega         : %-8.4f %-8.4f\n' % (self.__start_omega, self.__end_omega))
-                f.write(' >> domega        : %-10.6f\n' % (self.__domega))
-                f.write(' >> eta           : %-10.6f\n' % (self.__eta))
-                f.write(' >> method        : %-d\n' % (self.__method))
+                    f.write(' >> occ_band                      : %-d\n' % (self.__occ_band))
+
+                if self.__static_dielectric_only:
+                    f.write(' >> static_dielectric_only        : %-d\n' % (self.__static_dielectric_only))
+                else:
+                    f.write(' >> omega                         : %-8.4f %-8.4f\n' % (self.__start_omega, self.__end_omega))
+                    f.write(' >> domega                        : %-10.6f\n' % (self.__domega))
+                    f.write(' >> eta                           : %-10.6f\n' % (self.__eta))
+                    f.write(' >> method                        : %-d\n' % (self.__method))
                 
 
     def print_data(self):
         output_path = self.output_path
 
-        with open(os.path.join(output_path, 'optical_conductivity_real_part.dat'), 'w') as f:
-            f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s%16s\n"
-                    %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
-                    'yy', 'yz', 'zx', 'zy', 'zz', '(Siemens/meter)'))
-            for i_omega in range(self.__omega_num):
-                f.write("%10.5f"%(self.__start_omega + self.__domega * i_omega))
+        if self.__static_dielectric_only:
+            with open(os.path.join(output_path, 'static_dielectric_function.dat'), 'w') as f:
+                f.write("%1s%14s%15s%15s%15s%15s%15s%15s%15s%15s\n"
+                        %('#', 'xx', 'xy', 'xz', 'yx', 
+                        'yy', 'yz', 'zx', 'zy', 'zz'))
                 for direction in range(9):
-                    f.write("%15.6e"%(self.optical_conductivity[direction, i_omega].real))
+                    f.write("%15.6e"%(self.static_epsilon[direction]))
                 f.write('\n')
+        else:
+            with open(os.path.join(output_path, 'optical_conductivity_real_part.dat'), 'w') as f:
+                f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s%16s\n"
+                        %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
+                        'yy', 'yz', 'zx', 'zy', 'zz', '(Siemens/meter)'))
+                for i_omega in range(self.__omega_num):
+                    f.write("%10.5f"%(self.__start_omega + self.__domega * i_omega))
+                    for direction in range(9):
+                        f.write("%15.6e"%(self.optical_conductivity[direction, i_omega].real))
+                    f.write('\n')
 
-        with open(os.path.join(output_path, 'optical_conductivity_imag_part.dat'), 'w') as f:
-            f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s%16s\n"
-                    %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
-                    'yy', 'yz', 'zx', 'zy', 'zz', '(Siemens/meter)'))
-            for i_omega in range(self.__omega_num):
-                f.write("%10.5f"%((self.__start_omega + self.__domega * i_omega)))
-                for direction in range(9):
-                    f.write("%15.6e"%(self.optical_conductivity[direction, i_omega].imag))
-                f.write('\n')
+            with open(os.path.join(output_path, 'optical_conductivity_imag_part.dat'), 'w') as f:
+                f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s%16s\n"
+                        %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
+                        'yy', 'yz', 'zx', 'zy', 'zz', '(Siemens/meter)'))
+                for i_omega in range(self.__omega_num):
+                    f.write("%10.5f"%((self.__start_omega + self.__domega * i_omega)))
+                    for direction in range(9):
+                        f.write("%15.6e"%(self.optical_conductivity[direction, i_omega].imag))
+                    f.write('\n')
 
-        with open(os.path.join(output_path, 'dielectric_function_real_part.dat'), 'w') as f:
-            f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s\n"
-                    %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
-                    'yy', 'yz', 'zx', 'zy', 'zz'))
-            for i_omega in range(self.__omega_num):
-                f.write("%10.5f"%(self.__start_omega + self.__domega * i_omega))
-                for direction in range(9):
-                    f.write("%15.6e"%(self.dielectric_function[direction, i_omega].real))
-                f.write('\n')
+            with open(os.path.join(output_path, 'dielectric_function_real_part.dat'), 'w') as f:
+                f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s\n"
+                        %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
+                        'yy', 'yz', 'zx', 'zy', 'zz'))
+                for i_omega in range(self.__omega_num):
+                    f.write("%10.5f"%(self.__start_omega + self.__domega * i_omega))
+                    for direction in range(9):
+                        f.write("%15.6e"%(self.dielectric_function[direction, i_omega].real))
+                    f.write('\n')
 
-        with open(os.path.join(output_path, 'dielectric_function_imag_part.dat'), 'w') as f:
-            f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s\n"
-                    %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
-                    'yy', 'yz', 'zx', 'zy', 'zz'))
-            for i_omega in range(self.__omega_num):
-                f.write("%10.5f"%((self.__start_omega + self.__domega * i_omega)))
-                for direction in range(9):
-                    f.write("%15.6e"%(self.dielectric_function[direction, i_omega].imag))
-                f.write('\n')
+            with open(os.path.join(output_path, 'dielectric_function_imag_part.dat'), 'w') as f:
+                f.write("%1s%10s%14s%15s%15s%15s%15s%15s%15s%15s%15s\n"
+                        %('#', 'omega(eV)', 'xx', 'xy', 'xz', 'yx', 
+                        'yy', 'yz', 'zx', 'zy', 'zz'))
+                for i_omega in range(self.__omega_num):
+                    f.write("%10.5f"%((self.__start_omega + self.__domega * i_omega)))
+                    for direction in range(9):
+                        f.write("%15.6e"%(self.dielectric_function[direction, i_omega].imag))
+                    f.write('\n')
 
     def get_optical_conductivity(self):
         COMM.Barrier()
@@ -170,6 +184,56 @@ class Optical_Conductivity:
 
         if RANK == 0:
             return self.optical_conductivity, self.dielectric_function
+        else:
+            return None
+        
+    def get_static_dielectric_function(self):
+        COMM.Barrier()
+        if RANK == 0:
+            with open(RUNNING_LOG, 'a') as f:
+                f.write('\nEnter the optical_conductivity calculation module ==> \n')
+
+        k_generator = self.__k_generator
+        total_kpoint_num = k_generator.total_kpoint_num
+        self.static_epsilon = np.zeros(9, dtype=float)
+
+        for ik in k_generator:
+            COMM.Barrier()
+            time_start = time.time()
+
+            ik_process = kpoint_generator.kpoints_in_different_process(SIZE, RANK, ik)
+            kpoint_num = ik_process.k_direct_coor_local.shape[0]
+
+            if kpoint_num:
+                temp_static_epsilon = self.__tb_solver.get_static_dielectric_function(self.nspin, self.__occ_band, ik_process.k_direct_coor_local, total_kpoint_num, self.__use_fermi, self.__fermi_energy)
+
+                self.static_epsilon += temp_static_epsilon
+
+            COMM.Barrier()
+            time_end = time.time()
+            if RANK == 0:
+                with open(RUNNING_LOG, 'a') as f:
+                    if self.nspin == 2:
+                        k_factor = 2
+                    else:
+                        k_factor = 1
+                    f.write(' >> Calculated %10d k points, took %.6e s\n'%(ik.shape[0]*k_factor, time_end-time_start))
+
+        self.static_epsilon = COMM.reduce(self.static_epsilon, op=op_sum, root=0)
+
+        # if alpha == beta, dielectric function add 1.0
+        if RANK == 0:
+            self.static_epsilon[0] = self.static_epsilon[0] + 1.0
+            self.static_epsilon[4] = self.static_epsilon[4] + 1.0
+            self.static_epsilon[8] = self.static_epsilon[8] + 1.0
+
+        if RANK == 0:
+            self.print_data()
+
+        COMM.Barrier()
+
+        if RANK == 0:
+            return self.static_epsilon
         else:
             return None
 
@@ -359,11 +423,18 @@ plt.savefig('absorption.png', dpi=600)
             use_fermi = False
 
         self.set_parameters(use_fermi=use_fermi, fermi_energy=fermi_energy, occ_band=occ_band, **kwarg)
-        optical_conductivity_value = self.get_optical_conductivity()
+
+        if self.__static_dielectric_only:
+            static_epsilon_value = self.get_static_dielectric_function()
+        else:
+            optical_conductivity_value = self.get_optical_conductivity()
 
         timer.end('optical_conductivity', 'calculate optical conductivity')
         COMM.Barrier()
 
         if RANK == 0:
-            return optical_conductivity_value
+            if self.__static_dielectric_only:
+                return static_epsilon_value
+            else:
+                return optical_conductivity_value
     

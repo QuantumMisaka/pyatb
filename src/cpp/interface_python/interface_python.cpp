@@ -950,6 +950,47 @@ void interface_python::get_optical_conductivity_by_kubo(
 
 }
 
+void interface_python::get_static_dielectric_function_by_kubo(
+    const int &nspin,
+    const int &occupied_band_num,
+    const bool &use_fermi,
+    const double &fermi_energy, 
+    const MatrixXd &k_direct_coor,
+    const int &total_kpoint_num,
+    py::array_t<double> static_dielectric_function
+)
+{
+    auto sdf_data = static_dielectric_function.mutable_unchecked<1>();
+
+    Matrix<double, 9, 1> sdf_tem;
+    sdf_tem.setZero();
+
+    optical_conductivity_solver OCSolver;
+
+    int omega_num = 1;
+    double domega = 0.01;
+    double start_omega = 0.0;
+    double eta = 0.01;
+
+    if (use_fermi)
+    {
+        OCSolver.set_parameters_fermi(nspin, omega_num, domega, start_omega, eta, fermi_energy, k_direct_coor, total_kpoint_num);
+    }
+    else
+    {
+        OCSolver.set_parameters(nspin, omega_num, domega, start_omega, eta, occupied_band_num, k_direct_coor, total_kpoint_num);
+    }
+    
+    OCSolver.get_static_dielectric_function_by_kubo(Base_Data, sdf_tem);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        sdf_data(i) += sdf_tem(i);
+    }
+
+}
+
+
 void interface_python::get_shift_current(
     const int &nspin,
     const int &omega_num,
@@ -1385,6 +1426,7 @@ PYBIND11_MODULE(interface_python, m, py::mod_gil_not_used())
         .def("get_berry_phase_of_loop", &interface_python::get_berry_phase_of_loop)
         .def("get_wilson_loop", &interface_python::get_wilson_loop)
         .def("get_optical_conductivity_by_kubo", &interface_python::get_optical_conductivity_by_kubo)
+        .def("get_static_dielectric_function_by_kubo", &interface_python::get_static_dielectric_function_by_kubo)
         .def("get_shift_current", &interface_python::get_shift_current)
         .def("get_shift_current_n_m_pair", &interface_python::get_shift_current_n_m_pair)
         .def("get_second_harmonic", &interface_python::get_second_harmonic)
