@@ -1,6 +1,14 @@
+"""
+Created on Wed Jun 13 10:31:30 2018
+@author: shenzx
+
+Modified on Wed Aug 01 11:44:51 2022
+@author: Ji Yu-yang
+"""
+
 import numpy as np
 from ase.units import Bohr, Hartree, _me, mol
-from ase.constraints import FixCartesian
+from ase.constraints import FixAtoms, FixCartesian
 from ase import Atoms
 import re
 import warnings
@@ -66,17 +74,17 @@ def read_abacus_stru(fd, latname=None, verbose=False) -> Atoms:
     UNIT_V = np.sqrt(Hartree / AU_to_MASS)
 
     contents = fd.read()
-    title_str = r'(?:LATTICE_CONSTANT|NUMERICAL_DESCRIPTOR|NUMERICAL_ORBITAL|ABFS_ORBITAL|LATTICE_VECTORS|LATTICE_PARAMETERS|ATOMIC_POSITIONS)'
+    title_str = r"(?:LATTICE_CONSTANT|NUMERICAL_DESCRIPTOR|NUMERICAL_ORBITAL|ABFS_ORBITAL|LATTICE_VECTORS|LATTICE_PARAMETERS|ATOMIC_POSITIONS)"
 
     # remove comments and empty lines
-    contents = re.compile(r"#.*|//.*").sub('', contents)
-    contents = re.compile(r'\n{2,}').sub('\n', contents)
+    contents = re.compile(r"#.*|//.*").sub("", contents)
+    contents = re.compile(r"\n{2,}").sub("\n", contents)
 
     # specie, mass, pps
-    specie_pattern = re.compile(
-        rf'ATOMIC_SPECIES\s*\n([\s\S]+?)\s*\n{title_str}')
+    specie_pattern = re.compile(rf"ATOMIC_SPECIES\s*\n([\s\S]+?)\s*\n{title_str}")
     specie_lines = np.array(
-        [line.split() for line in specie_pattern.search(contents).group(1).split('\n')])
+        [line.split() for line in specie_pattern.search(contents).group(1).split("\n")]
+    )
     symbols = specie_lines[:, 0]
     ntype = len(symbols)
     mass = specie_lines[:, 1].astype(float)
@@ -86,30 +94,29 @@ def read_abacus_stru(fd, latname=None, verbose=False) -> Atoms:
         atom_potential = None
 
     # basis
-    aim_title = 'NUMERICAL_ORBITAL'
-    aim_title_sub = title_str.replace('|' + aim_title, '')
-    orb_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    aim_title = "NUMERICAL_ORBITAL"
+    aim_title_sub = title_str.replace("|" + aim_title, "")
+    orb_pattern = re.compile(rf"{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}")
     orb_lines = orb_pattern.search(contents)
     if orb_lines:
-        atom_basis = dict(zip(symbols, orb_lines.group(1).split('\n')))
+        atom_basis = dict(zip(symbols, orb_lines.group(1).split("\n")))
     else:
         atom_basis = None
 
     # ABFs basis
-    aim_title = 'ABFS_ORBITAL'
-    aim_title_sub = title_str.replace('|' + aim_title, '')
-    abf_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    aim_title = "ABFS_ORBITAL"
+    aim_title_sub = title_str.replace("|" + aim_title, "")
+    abf_pattern = re.compile(rf"{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}")
     abf_lines = abf_pattern.search(contents)
     if abf_lines:
-        atom_offsite_basis = dict(zip(symbols, abf_lines.group(1).split('\n')))
+        atom_offsite_basis = dict(zip(symbols, abf_lines.group(1).split("\n")))
     else:
         atom_offsite_basis = None
 
     # deepks for ABACUS
-    aim_title = 'NUMERICAL_DESCRIPTOR'
-    aim_title_sub = title_str.replace('|' + aim_title, '')
-    deep_pattern = re.compile(
-        rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    aim_title = "NUMERICAL_DESCRIPTOR"
+    aim_title_sub = title_str.replace("|" + aim_title, "")
+    deep_pattern = re.compile(rf"{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}")
     deep_lines = deep_pattern.search(contents)
     if deep_lines:
         atom_descriptor = deep_lines.group(1)
@@ -117,57 +124,62 @@ def read_abacus_stru(fd, latname=None, verbose=False) -> Atoms:
         atom_descriptor = None
 
     # lattice constant
-    aim_title = 'LATTICE_CONSTANT'
-    aim_title_sub = title_str.replace('|' + aim_title, '')
-    a0_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    aim_title = "LATTICE_CONSTANT"
+    aim_title_sub = title_str.replace("|" + aim_title, "")
+    a0_pattern = re.compile(rf"{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}")
     a0_lines = a0_pattern.search(contents)
     atom_lattice_scale = float(a0_lines.group(1))
 
     # lattice vector
     if latname:
-        aim_title = 'LATTICE_PARAMETERS'
-        aim_title_sub = title_str.replace('|' + aim_title, '')
-        lparam_pattern = re.compile(
-            rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+        aim_title = "LATTICE_PARAMETERS"
+        aim_title_sub = title_str.replace("|" + aim_title, "")
+        lparam_pattern = re.compile(rf"{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}")
         lparam_lines = lparam_pattern.search(contents)
         atom_lattice = get_lattice_from_latname(lparam_lines, latname)
     else:
-        aim_title = 'LATTICE_VECTORS'
-        aim_title_sub = title_str.replace('|' + aim_title, '')
-        vec_pattern = re.compile(
-            rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+        aim_title = "LATTICE_VECTORS"
+        aim_title_sub = title_str.replace("|" + aim_title, "")
+        vec_pattern = re.compile(rf"{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}")
         vec_lines = vec_pattern.search(contents)
         if vec_lines:
-            atom_lattice = np.array([line.split() for line in vec_pattern.search(
-                contents).group(1).split('\n')]).astype(float)
+            atom_lattice = np.array(
+                [
+                    line.split()
+                    for line in vec_pattern.search(contents).group(1).split("\n")
+                ]
+            ).astype(float)
         else:
             raise Exception(
-                f"Parameter `latname` or `LATTICE_VECTORS` in {fd.name} must be set.")
+                f"Parameter `latname` or `LATTICE_VECTORS` in {fd.name} must be set."
+            )
     atom_lattice = atom_lattice * atom_lattice_scale * Bohr
 
-    aim_title = 'ATOMIC_POSITIONS'
-    type_pattern = re.compile(rf'{aim_title}\s*\n(\w+)\s*\n')
+    aim_title = "ATOMIC_POSITIONS"
+    type_pattern = re.compile(rf"{aim_title}\s*\n(\w+)\s*\n")
     # type of coordinates
     atom_pos_type = type_pattern.search(contents).group(1)
     assert atom_pos_type in [
-        'Direct', 'Cartesian'], "Only two type of atomic coordinates are supported: 'Direct' or 'Cartesian'."
+        "Direct",
+        "Cartesian",
+    ], "Only two type of atomic coordinates are supported: 'Direct' or 'Cartesian'."
 
-    block_pattern = re.compile(rf'{atom_pos_type}\s*\n([\s\S]+)')
+    block_pattern = re.compile(rf"{atom_pos_type}\s*\n([\s\S]+)")
     block = block_pattern.search(contents).group()
-    if block[-1] != '\n':
-        block += '\n'
+    if block[-1] != "\n":
+        block += "\n"
     atom_magnetism = []
     atom_symbol = []
     # atom_mass = []
     atom_block = []
     for i, symbol in enumerate(symbols):
-        pattern = re.compile(rf'{symbol}\s*\n({_re_float})\s*\n(\d+)')
+        pattern = re.compile(rf"{symbol}\s*\n({_re_float})\s*\n(\d+)")
         sub_block = pattern.search(block)
         number = int(sub_block.group(2))
 
         # symbols, magnetism
         sym = [symbol] * number
-        masses = [mass] * number
+        # masses = [mass] * number
         atom_mags = [float(sub_block.group(1))] * number
         for j in range(number):
             atom_symbol.append(sym[j])
@@ -176,20 +188,14 @@ def read_abacus_stru(fd, latname=None, verbose=False) -> Atoms:
 
         if i == ntype - 1:
             lines_pattern = re.compile(
-                rf'{symbol}\s*\n{_re_float}\s*\n\d+\s*\n([\s\S]+)\s*\n')
+                rf"{symbol}\s*\n{_re_float}\s*\n\d+\s*\n([\s\S]+)\s*\n"
+            )
         else:
             lines_pattern = re.compile(
-                rf'{symbol}\s*\n{_re_float}\s*\n\d+\s*\n([\s\S]+?)\s*\n\w+\s*\n{_re_float}')
+                rf"{symbol}\s*\n{_re_float}\s*\n\d+\s*\n([\s\S]+?)\s*\n\w+\s*\n{_re_float}"
+            )
         lines = lines_pattern.search(block)
-        # --- 新增：逐行去掉行内注释，并跳过空行 ---
-        cleaned_rows = []
-        for raw in lines.group(1).split('\n'):
-            # 去掉行内注释（# 或 // 之后的内容）
-            no_comment = re.split(r'#|//', raw, maxsplit=1)[0].strip()
-            if not no_comment:
-                continue
-            cleaned_rows.append(no_comment.split())
-        for j in cleaned_rows:
+        for j in [line.split() for line in lines.group(1).split("\n")]:
             atom_block.append(j)
     atom_block = np.array(atom_block)
     atom_magnetism = np.array(atom_magnetism)
@@ -198,66 +204,63 @@ def read_abacus_stru(fd, latname=None, verbose=False) -> Atoms:
     atom_positions = atom_block[:, 0:3].astype(float)
     natoms = len(atom_positions)
 
-    # -------- FIX CARTESIAN (健壮化) --------
-    # 可能的几种格式：
-    #  - 仅坐标：               x y z
-    #  - 后跟三位开关：         x y z  1 1 1
-    #  - 带 'm' + 三位开关：    x y z  m 1 1 1
-    cols = atom_block.shape[1]
-    if cols >= 7 and np.all(atom_block[:, 3] == 'm'):
-        # x y z m 1 1 1
-        switches = atom_block[:, 4:7].astype(int)
-        atom_xyz = ~switches.astype(bool)
-    elif cols >= 6:
-        # x y z 1 1 1
-        switches = atom_block[:, 3:6].astype(int)
-        atom_xyz = ~switches.astype(bool)
-    else:
-        # 只有坐标：无任何约束，全部可动
-        atom_xyz = np.zeros((natoms, 3), dtype=bool)
+    fix = []
+    fix_cart = []
+    atom_xyz = np.zeros((natoms, 3)).astype(bool)
 
-    fix_cart = [FixCartesian(ci, xyz) for ci, xyz in enumerate(atom_xyz)]
-
-    def _get_index(labels, num):
+    def _get_index(labels, num, dtype=float):
         index = None
         res = []
         for l in labels:
             if l in atom_block:
                 index = np.where(atom_block == l)[-1][0]
         if index is not None:
-            res = atom_block[:, index + 1:index + 1 + num].astype(float)
+            res = atom_block[:, index + 1 : index + 1 + num].astype(dtype)
 
         return res, index
 
+    if atom_block.shape[1] > 3:
+        # fix_cart
+        if np.all(np.isin(atom_block[:, 3], ["0", "1"])):
+            atom_xyz = ~atom_block[:, 3:6].astype(bool)
+        move_labels = ["m"]
+        move_xyz, move_index = _get_index(move_labels, 3, dtype=bool)
+        if move_index:
+            atom_xyz = ~move_xyz
+
     # velocity
-    v_labels = ['v', 'vel', 'velocity']
+    v_labels = ["v", "vel", "velocity"]
     atom_vel, v_index = _get_index(v_labels, 3)
 
     # magnetism
-    m_labels = ['mag', 'magmom']
-    if 'angle1' in atom_block or 'angle2' in atom_block:
+    m_labels = ["mag", "magmom"]
+    if "angle1" in atom_block or "angle2" in atom_block:
         warnings.warn(
-            "Non-colinear angle-settings are not yet supported for this interface.")
+            "Non-colinear angle-settings are not yet supported for this interface."
+        )
     mags, m_index = _get_index(m_labels, 1)
-    try:     # non-colinear
+    try:  # non-colinear
         if m_index:
-            atom_magnetism = atom_block[:,
-                                        m_index + 1:m_index + 4].astype(float)
+            atom_magnetism = atom_block[:, m_index + 1 : m_index + 4].astype(float)
     except IndexError:  # colinear
         if m_index:
             atom_magnetism = mags
 
     # to ase
-    if atom_pos_type == 'Direct':
-        atoms = Atoms(symbols=atom_symbol,
-                      cell=atom_lattice,
-                      scaled_positions=atom_positions,
-                      pbc=True)
-    elif atom_pos_type == 'Cartesian':
-        atoms = Atoms(symbols=atom_symbol,
-                      cell=atom_lattice,
-                      positions=atom_positions * atom_lattice_scale * Bohr,
-                      pbc=True)
+    if atom_pos_type == "Direct":
+        atoms = Atoms(
+            symbols=atom_symbol,
+            cell=atom_lattice,
+            scaled_positions=atom_positions,
+            pbc=True,
+        )
+    elif atom_pos_type == "Cartesian":
+        atoms = Atoms(
+            symbols=atom_symbol,
+            cell=atom_lattice,
+            positions=atom_positions * atom_lattice_scale * Bohr,
+            pbc=True,
+        )
 
     # atom_mass = np.array(atom_mass).flatten()
     # if atom_mass.any():
@@ -266,7 +269,15 @@ def read_abacus_stru(fd, latname=None, verbose=False) -> Atoms:
         atoms.set_velocities(atom_vel * UNIT_V)
 
     atoms.set_initial_magnetic_moments(atom_magnetism)
-    atoms.set_constraint(fix_cart)
+    for ci, xyz in enumerate(atom_xyz):
+        if xyz.all():
+            fix.append(ci)
+        elif xyz.any():
+            fix_cart.append(FixCartesian(ci, xyz))
+    if len(fix):
+        atoms.set_constraint([FixAtoms(indices=fix)] + fix_cart)
+    else:
+        atoms.set_constraint(fix_cart)
 
     if verbose:
         atoms.info["pp"] = atom_potential

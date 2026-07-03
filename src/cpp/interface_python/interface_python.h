@@ -268,6 +268,16 @@ public:
         py::array_t<std::complex<double>> dielectric_function
     );
 
+    void get_static_dielectric_function_by_kubo(
+        const int &nspin,
+        const int &occupied_band_num,
+        const bool &use_fermi,
+        const double &fermi_energy, 
+        const MatrixXd &k_direct_coor,
+        const int &total_kpoint_num,
+        py::array_t<double> static_dielectric_function
+    );
+
     void get_shift_current(
         const int &nspin,
         const int &omega_num,

@@ -103,8 +103,11 @@ class Spin_Texture:
             pauli_z[2*i+1, 2*i+1] = -1
         return [pauli_x, pauli_y, pauli_z]
 
-    def get_spin_texture(self, band_range):
+    def get_spin_texture(self, band_range, orbital_resolved, stru_file):
         COMM.Barrier()
+
+        if orbital_resolved:
+            self.__tb.read_stru(stru_file, True)
 
         self.band_range = band_range
 
@@ -123,13 +126,14 @@ class Spin_Texture:
         else:
             k_generator = self.__k_generator
 
+        basis_num = self.__tb.basis_num
+        pauli_matix = self.__generate_pauli(basis_num)
+
         if RANK == 0:
             self.kvec_d = np.zeros([0, 3], dtype=float)
             self.spin_texture = np.zeros([0, 3, band_num], dtype=float)
             self.eig = np.zeros([0, band_num], dtype=float)
-
-        basis_num = self.__tb.basis_num
-        pauli_matix = self.__generate_pauli(basis_num)
+            self.spin_texture_orbital_resolved = np.zeros([0, 3, basis_num, band_num], dtype=float)
 
         for ik in k_generator:
             COMM.Barrier()
@@ -142,6 +146,10 @@ class Spin_Texture:
                 self.kvec_d = ik
                 
             spin_texture = np.zeros([kpoint_num, 3, band_num], dtype=float)
+
+            if orbital_resolved:
+                spin_texture_orbital_resolved = np.zeros([kpoint_num, 3, basis_num, band_num], dtype=float)
+
             if kpoint_num:
                 eigenvectors, eigenvalues = self.__tb_solver.diago_H_range(ik_process.k_direct_coor_local, min_band, max_band)
                 Sk = self.__tb_solver.get_Sk(ik_process.k_direct_coor_local)
@@ -152,13 +160,23 @@ class Spin_Texture:
                     for ib in range(band_num):
                         spin_texture[i, direction, ib] = (eigenvectors[i, :, ib].T.conjugate() @ Sk[i] @ pauli_matix[direction] @ eigenvectors[i, :, ib]).real
 
+                    if orbital_resolved:
+                        spin_texture_orbital_resolved[i, direction] = ((eigenvectors[i].T.conjugate() @ Sk[i] @ pauli_matix[direction]).T * eigenvectors[i]).real
+
             tem_spin_texture = COMM.reduce(spin_texture, root=0, op=op_gather_numpy)
             tem_eigenvalues = COMM.reduce(eigenvalues, root=0, op=op_gather_numpy)
+
+            if orbital_resolved:
+                tem_spin_texture_orbital_resolved = COMM.reduce(spin_texture_orbital_resolved, root=0, op=op_gather_numpy)
 
             if RANK == 0:
                 self.spin_texture = tem_spin_texture
                 self.eig = tem_eigenvalues
-                self.print_data()
+
+                if orbital_resolved:
+                    self.spin_texture_orbital_resolved = tem_spin_texture_orbital_resolved
+
+                self.print_data(orbital_resolved)
 
             COMM.Barrier()
             time_end = time.time()
@@ -166,14 +184,45 @@ class Spin_Texture:
                 with open(RUNNING_LOG, 'a') as f:
                     f.write(' >> Calculated %10d k points, took %.6e s\n'%(ik.shape[0], time_end-time_start))
 
+        if RANK == 0 and orbital_resolved:
+            self.transform_xml('x',
+                               'band.dat', 
+                               'spin_texture_orbital_resolved_x.dat', 
+                               'spin_texture_orbital_resolved_x.xml', 
+                               k_generator.total_kpoint_num, 
+                               basis_num, 
+                               band_num
+            )
+
+            self.transform_xml('y',
+                               'band.dat', 
+                               'spin_texture_orbital_resolved_y.dat', 
+                               'spin_texture_orbital_resolved_y.xml', 
+                               k_generator.total_kpoint_num, 
+                               basis_num, 
+                               band_num
+            )
+
+            self.transform_xml('z',
+                               'band.dat', 
+                               'spin_texture_orbital_resolved_z.dat', 
+                               'spin_texture_orbital_resolved_z.xml', 
+                               k_generator.total_kpoint_num, 
+                               basis_num, 
+                               band_num
+            )
+
         if RANK == 0:
             with open(RUNNING_LOG, 'a') as f:
                 f.write('\nAll calculation results are in the ' + self.output_path + '\n')
 
         if SIZE == 1 and k_generator.total_kpoint_num <= self.__max_kpoint_num:
-            return self.kvec_d, self.eig, self.spin_texture
+            if orbital_resolved:
+                return self.kvec_d, self.eig, self.spin_texture, self.spin_texture_orbital_resolved
+            else:
+                return self.kvec_d, self.eig, self.spin_texture
     
-    def print_data(self):
+    def print_data(self, orbital_resolved):
         output_path = self.output_path
 
         with open(os.path.join(output_path, 'kpt.dat'), 'a+') as f:   
@@ -190,7 +239,70 @@ class Spin_Texture:
         
         with open(os.path.join(output_path, 'spin_texture_z.dat'), 'a+') as f:
             np.savetxt(f, self.spin_texture[:, 2, :], fmt='%12.6f')
+
+        if orbital_resolved:
+            with open(os.path.join(output_path, 'spin_texture_orbital_resolved_x.dat'), 'a+') as f:
+                for data_ik in self.spin_texture_orbital_resolved[:, 0, :, :]:
+                    np.savetxt(f, data_ik, fmt='%12.6f')
             
+            with open(os.path.join(output_path, 'spin_texture_orbital_resolved_y.dat'), 'a+') as f:
+                for data_ik in self.spin_texture_orbital_resolved[:, 1, :, :]:
+                    np.savetxt(f, data_ik, fmt='%12.6f')
+            
+            with open(os.path.join(output_path, 'spin_texture_orbital_resolved_z.dat'), 'a+') as f:
+                for data_ik in self.spin_texture_orbital_resolved[:, 2, :, :]:
+                    np.savetxt(f, data_ik, fmt='%12.6f')
+
+    def transform_xml(self, direction, eig_filename, p_spin_filename, xml_filename, kpoint_num, basis_num, band_num):
+        eig = np.loadtxt(os.path.join(self.output_path, eig_filename))
+        p_spin = np.loadtxt(os.path.join(self.output_path, p_spin_filename)).reshape(kpoint_num, basis_num, band_num)
+
+        basis_num = int(basis_num / 2)
+        out_p_spin = np.zeros([kpoint_num, basis_num, band_num], dtype=float)
+        for ik in range(kpoint_num):
+            for iw in range(basis_num):
+                out_p_spin[ik, iw] = p_spin[ik, iw*2] + p_spin[ik, iw*2+1]
+
+        p_spin = out_p_spin
+
+        with open(os.path.join(self.output_path, xml_filename), 'w') as f:
+            f.write('<pspin_%s>\n'%(direction))
+            f.write('<nspin>4</nspin>\n')
+            f.write('<norbitals>%d</norbitals>\n'%(basis_num))
+            f.write('<band_structure nkpoints="%d" nbands="%d" units="eV">\n'%(kpoint_num, band_num))
+            np.savetxt(f, eig, fmt='%0.5f')
+            f.write('</band_structure>\n')
+
+            index = 0
+            atom_index = 0
+            for it in self.__tb.stru_atom:
+                species = it.species
+                orbital_num = it.orbital_num
+                for ia in range(it.atom_num):
+                    atom_index += 1
+                    for l in range(len(orbital_num)):
+                        for z in range(orbital_num[l]):
+                            for m in range(2*l+1):
+                                index += 1
+                                f.write('<orbital\n')
+                                f.write('index=\"%d\"\n'%(index))
+                                f.write('atom_index=\"%d\"\n'%(atom_index))
+                                f.write('species=\"%s\"\n'%(species))
+                                f.write('l=\"%d\"\n'%(l))
+                                f.write('m=\"%d\"\n'%(m))
+                                f.write('z=\"%d\"\n'%(z+1))
+                                f.write('>\n')
+                                f.write('<data>\n')
+
+                                for ik in range(kpoint_num):
+                                    for ib in range(band_num):
+                                        f.write('%.6e '%(p_spin[ik, index-1, ib]))
+                                    f.write('\n')
+
+                                f.write('</data>\n')
+                                f.write('</orbital>\n')
+
+            f.write('</pspin_%s>\n'%(direction))        
 
     def print_plot_script(self, fermi_energy, **kwarg):
         if self.__kpoint_mode == 'line' and RANK == 0:
@@ -540,7 +652,7 @@ if __name__ == "__main__":
             print('ImportError: Spin Texture Plot requires matplotlib package!')
             return None
     
-    def calculate_spin_texture(self, band_range, kpoint_mode,**kwarg):
+    def calculate_spin_texture(self, band_range, kpoint_mode, orbital_resolved, stru_file, **kwarg):
         COMM.Barrier()
         timer.start('spin_texture', 'calculate_spin_texture')
 
@@ -551,7 +663,8 @@ if __name__ == "__main__":
         else:
             self.set_k_direct(**kwarg)
 
-        self.get_spin_texture(band_range)
+        self.__orbital_resolved = orbital_resolved
+        self.get_spin_texture(band_range, orbital_resolved, stru_file)
 
         timer.end('spin_texture', 'calculate_spin_texture')
 

@@ -242,7 +242,7 @@ class PDOS(DOS):
             orb['data'] = np.asarray(data, dtype=float)
             self.orbitals.append(orb)
 
-        self.energy = np.reshape(e_list, newshape=(-1, 1)).astype(float)
+        self.energy = np.reshape(e_list, (-1, 1)).astype(float)
 
     def _all_sum(self) -> Tuple[np.ndarray, int]:
         res = np.zeros_like(self.orbitals[0]["data"], dtype=float)

@@ -39,6 +39,8 @@ public:
     // when method = 0, use KK; method = 1, use Lorentian function.
     void get_optical_conductivity_by_kubo(base_data &Base_Data, const int &method, MatrixXcd &optical_conductivity, MatrixXcd &dielectric_function);
 
+    void get_static_dielectric_function_by_kubo(base_data &Base_Data, Matrix<double, 9, 1> &static_dielectric_function);
+
 
 private:
 
