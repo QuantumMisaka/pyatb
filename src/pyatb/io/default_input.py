@@ -214,7 +214,8 @@ INPUT = {
         'output_prefix'               : [str, 1, 'COHP'],
         'input_file'                  : [str, 1, ''],
         'orbital_dir'                 : [str, 1, ''],
-        'kpoint_mode'                 : [str, 1, None]
+        'kpoint_mode'                 : [str, 1, None],
+        'kpoint_weights'              : [float, -1, None]
     },
 
     'FERMI_ENERGY' : 
