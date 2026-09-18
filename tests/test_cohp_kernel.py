@@ -1,5 +1,6 @@
 import numpy as np
 import inspect
+import os
 import types
 
 import pyatb.fermi.cohp as cohp_module
@@ -83,6 +84,16 @@ class _UnitSolver:
         return np.ones((kpoints.shape[0], 1, 1), dtype=np.complex128)
 
 
+class _TimerStub:
+    """Stand-in for the runtime timer (upstream 7b4832e defers it to initialize_runtime)."""
+
+    def start(self, *_args, **_kwargs):
+        return None
+
+    def end(self, *_args, **_kwargs):
+        return None
+
+
 def _cohp_with_fake_solver(nspin):
     cohp = COHP.__new__(COHP)
     cohp.nspin = nspin
@@ -101,6 +112,8 @@ def _calculate_fake_spectrum(cohp, monkeypatch):
     )
     monkeypatch.setattr(cohp_module, "resolve_cohp_orbitals", lambda **kwargs: selection)
     monkeypatch.setattr(COHP, "print_data", lambda self, output_prefix, energy, spectrum, *args: captured.update(spectrum=spectrum.copy()))
+    monkeypatch.setattr(cohp_module, "timer", _TimerStub())
+    monkeypatch.setattr(cohp_module, "RUNNING_LOG", os.devnull)
 
     cohp.calculate_cohp(
         fermi_energy=0.0,
@@ -154,6 +167,8 @@ def test_calculate_cohp_uses_explicit_nonuniform_kpoint_weights(monkeypatch):
         "print_data",
         lambda self, output_prefix, energy, spectrum, *args: captured.update(spectrum=spectrum.copy()),
     )
+    monkeypatch.setattr(cohp_module, "timer", _TimerStub())
+    monkeypatch.setattr(cohp_module, "RUNNING_LOG", os.devnull)
 
     cohp.calculate_cohp(
         fermi_energy=0.0,
