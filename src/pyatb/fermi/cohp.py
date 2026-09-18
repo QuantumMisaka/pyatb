@@ -11,13 +11,22 @@ import shutil
 import numpy as np
 
 
-def cohp_values_one_k(matrix, eigenvalues, eigenvectors, atom_i_orbs, atom_j_orbs):
+def cohp_values_one_k(
+    matrix,
+    eigenvalues,
+    eigenvectors,
+    atom_i_orbs,
+    atom_j_orbs,
+    pair_factor=1.0,
+):
     atom_i_orbs = np.asarray(atom_i_orbs, dtype=int)
     atom_j_orbs = np.asarray(atom_j_orbs, dtype=int)
     block = matrix[np.ix_(atom_i_orbs, atom_j_orbs)]
     coeff_i = eigenvectors[atom_i_orbs, :]
     coeff_j = eigenvectors[atom_j_orbs, :]
-    values = np.einsum("ib,ij,jb->b", coeff_i.conjugate(), block, coeff_j, optimize=True).real
+    values = pair_factor * np.einsum(
+        "ib,ij,jb->b", coeff_i.conjugate(), block, coeff_j, optimize=True
+    ).real
     return np.asarray(eigenvalues, dtype=float), values
 
 
@@ -104,11 +113,19 @@ class COHP:
         return [0, 1]
 
     def _accumulate_one_k(self, spectrum, matrix, eigenvalues, eigenvectors, atom_i_orbs,
-                          atom_j_orbs, energy_min, de, sigma, invert):
+                          atom_j_orbs, energy_min, de, sigma, invert,
+                          pair_factor=1.0, kpoint_weight=1.0):
         e_num = spectrum.shape[0]
         energy_max = energy_min + de * e_num
         interval = int(10 * sigma / de)
-        energies, values = cohp_values_one_k(matrix, eigenvalues, eigenvectors, atom_i_orbs, atom_j_orbs)
+        energies, values = cohp_values_one_k(
+            matrix,
+            eigenvalues,
+            eigenvectors,
+            atom_i_orbs,
+            atom_j_orbs,
+            pair_factor=pair_factor,
+        )
         if invert:
             values = -values
         for energy, value in zip(energies, values):
@@ -118,7 +135,24 @@ class COHP:
             start_index = max(0, index - interval)
             end_index = min(e_num, index + interval + 1)
             delta_E = energy_min + np.arange(start_index, end_index, dtype=float) * de - energy
-            spectrum[start_index:end_index] += value * gauss(sigma, delta_E)
+            spectrum[start_index:end_index] += kpoint_weight * value * gauss(sigma, delta_E)
+
+    @staticmethod
+    def _normalized_kpoint_weights(total_kpoint_num, weights=None):
+        if weights is None:
+            return np.full(total_kpoint_num, 1.0 / total_kpoint_num, dtype=float)
+        weights = np.asarray(weights, dtype=float)
+        if weights.shape != (total_kpoint_num,):
+            raise ValueError(
+                "kpoint_weights must contain one value per generated k point "
+                "(%d expected, %d received)" % (total_kpoint_num, weights.size)
+            )
+        if not np.all(np.isfinite(weights)) or np.any(weights < 0.0):
+            raise ValueError("kpoint_weights must be finite and non-negative")
+        total = float(weights.sum())
+        if total <= 0.0:
+            raise ValueError("kpoint_weights must have a positive sum")
+        return weights / total
 
     def _matrix_for_method(self, solver, kpoints, method):
         method = method.upper()
@@ -162,6 +196,14 @@ class COHP:
             orbital_dir=kwarg.get("orbital_dir"),
         )
         spin_indices = self._spin_indices(spin)
+        pair_factor = 1.0 if atom_i_index == atom_j_index else 2.0
+        supplied_kpoint_weights = kwarg.get("kpoint_weights")
+        kpoint_weights = self._normalized_kpoint_weights(
+            self.__k_generator.total_kpoint_num,
+            supplied_kpoint_weights,
+        )
+        self._last_pair_factor = pair_factor
+        self._last_kpoint_weight_mode = "explicit_normalized" if supplied_kpoint_weights is not None else "uniform"
 
         if RANK == 0:
             with open(RUNNING_LOG, "a") as f:
@@ -176,11 +218,16 @@ class COHP:
                 f.write(" >> de           : %.6f\n" % de)
                 f.write(" >> sigma        : %.6f\n" % sigma)
 
+        chunk_start = 0
         for ik in self.__k_generator:
+            chunk_weights = kpoint_weights[chunk_start:chunk_start + ik.shape[0]]
+            chunk_start += ik.shape[0]
             ik_process = kpoint_generator.kpoints_in_different_process(SIZE, RANK, ik)
             kpoint_num = ik_process.k_direct_coor_local.shape[0]
             if not kpoint_num:
                 continue
+            local_start = ik_process.ik_start_index
+            local_weights = chunk_weights[local_start:local_start + kpoint_num]
             for ispin in spin_indices:
                 solver = self.__tb_solver[ispin]
                 eigenvectors, eigenvalues = solver.diago_H(ik_process.k_direct_coor_local)
@@ -197,12 +244,14 @@ class COHP:
                         de,
                         sigma,
                         bool(invert),
+                        pair_factor=pair_factor,
+                        kpoint_weight=local_weights[single_k],
                     )
 
         spectrum = COMM.reduce(spectrum, root=0, op=op_sum)
 
         if RANK == 0:
-            spectrum = spectrum / self.__k_generator.total_kpoint_num * self._spin_degeneracy_factor(spin)
+            spectrum = spectrum * self._spin_degeneracy_factor(spin)
             energy_grid = np.array([energy_min + i * de for i in range(e_num)], dtype=float)
             if shift_to_efermi:
                 output_energy = energy_grid - fermi_energy
@@ -244,6 +293,9 @@ class COHP:
             "atom_i_orbitals": selection.atom_i_orbitals,
             "atom_j_orbitals": selection.atom_j_orbitals,
             "total_orbitals": selection.orbital_map.total_orbitals,
+            "pair_convention": "unordered Hermitian atom pair",
+            "pair_factor": float(getattr(self, "_last_pair_factor", 1.0)),
+            "kpoint_weight_mode": getattr(self, "_last_kpoint_weight_mode", "uniform"),
             "atoms": [
                 {
                     "index": atom.index,

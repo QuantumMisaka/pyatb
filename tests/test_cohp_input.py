@@ -41,3 +41,10 @@ def test_variable_length_orbital_selector_stops_at_next_known_parameter():
     assert get_general_parameter("atom_i_orbs", [str, -1, "all"], data, known) == "2s,2p"
     assert get_general_parameter("atom_j_orbs", [str, -1, "all"], data, known) == "all"
     assert get_general_parameter("de", [float, 1, 0.05], data, known) == 0.02
+
+
+def test_variable_length_kpoint_weights_are_parsed_as_floats():
+    data = ["kpoint_weights", "0.25", "0.75", "de", "0.02"]
+    known = {"kpoint_weights", "de"}
+
+    assert get_general_parameter("kpoint_weights", [float, -1, None], data, known) == [0.25, 0.75]
