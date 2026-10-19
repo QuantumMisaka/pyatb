@@ -1,0 +1,26 @@
+=========================== short test summary info ============================
+FAILED tests/test_cohp_kernel.py::test_same_atom_disjoint_channels_have_full_hermitian_weight
+FAILED tests/test_cohp_kernel.py::test_ambiguous_or_empty_orbital_selections_fail[selection0]
+FAILED tests/test_cohp_kernel.py::test_ambiguous_or_empty_orbital_selections_fail[selection1]
+FAILED tests/test_cohp_kernel.py::test_output_records_sign_and_discrete_integral[0-COHP]
+FAILED tests/test_cohp_kernel.py::test_output_records_sign_and_discrete_integral[0-COOP]
+FAILED tests/test_cohp_kernel.py::test_output_records_sign_and_discrete_integral[1-COHP]
+FAILED tests/test_cohp_kernel.py::test_output_records_sign_and_discrete_integral[1-COOP]
+FAILED tests/test_cohp_kernel.py::test_integral_ignores_plot_window_and_includes_fermi_boundary[1-sum-2]
+FAILED tests/test_cohp_kernel.py::test_integral_ignores_plot_window_and_includes_fermi_boundary[2-sum-2]
+FAILED tests/test_cohp_kernel.py::test_integral_ignores_plot_window_and_includes_fermi_boundary[2-up-1]
+FAILED tests/test_cohp_kernel.py::test_integral_ignores_plot_window_and_includes_fermi_boundary[2-down-1]
+FAILED tests/test_cohp_kernel.py::test_gaussian_includes_boundary_states_and_external_tails[0.0]
+FAILED tests/test_cohp_kernel.py::test_gaussian_includes_boundary_states_and_external_tails[-0.05]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params0]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params1]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params2]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params3]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params4]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params5]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params6]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params7]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params8]
+FAILED tests/test_cohp_kernel.py::test_invalid_energy_grid_fails_clearly[params9]
+FAILED tests/test_cohp_kernel.py::test_kpoint_weights_are_stable_for_large_finite_inputs
+24 failed, 8 passed, 3 warnings in 0.97s

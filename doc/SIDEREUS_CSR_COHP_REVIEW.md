@@ -1,5 +1,9 @@
 # Sidereus integration and COHP comparison — 2026-10-19
 
+This records the pre-fix assessment at `dad27b5`. The subsequent authorized
+COHP fixes and new discrete integrals are documented in the
+[correctness follow-up](validation/2026-10-19-cohp-correctness/README.md).
+
 The integration base is QuantumMisaka/pyatb `sidereus-adam@9655a85`, not upstream
 `main@80f7c2d`. The CSR patch was cherry-picked without conflict as `d638031`.
 It changes H/S format reading and ABACUS input R alignment; the branch's COHP

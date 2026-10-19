@@ -48,3 +48,20 @@ def test_variable_length_kpoint_weights_are_parsed_as_floats():
     known = {"kpoint_weights", "de"}
 
     assert get_general_parameter("kpoint_weights", [float, -1, None], data, known) == [0.25, 0.75]
+
+
+def test_omitted_cohp_kpoint_weights_use_uniform_default(tmp_path):
+    # Follow the actual parser -> main adapter path; None means required to the parser.
+    parsed = get_general_parameter('kpoint_weights', INPUT['COHP']['kpoint_weights'],
+                                   ['de', '0.02'], INPUT['COHP'].keys())
+    import numpy as np
+    for weights in (parsed, np.asarray(parsed)):
+        params = _cohp_parameters_with_default_input({'kpoint_weights': weights}, str(tmp_path))
+        assert params.get('kpoint_weights') is None
+
+
+def test_explicit_empty_kpoint_weights_are_not_silently_defaulted():
+    import pytest
+    with pytest.raises((ValueError, KeyError), match='kpoint_weights'):
+        get_general_parameter('kpoint_weights', INPUT['COHP']['kpoint_weights'],
+                              ['kpoint_weights', 'de', '0.02'], INPUT['COHP'].keys())

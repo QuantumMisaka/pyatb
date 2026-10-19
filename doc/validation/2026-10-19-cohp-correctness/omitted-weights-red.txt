@@ -1,0 +1,59 @@
+.....F                                                                   [100%]
+=================================== FAILURES ===================================
+_____________ test_omitted_cohp_kpoint_weights_use_uniform_default _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-james/pytest-2927/test_omitted_cohp_kpoint_weigh0')
+
+    def test_omitted_cohp_kpoint_weights_use_uniform_default(tmp_path):
+        # Follow the actual parser -> main adapter path; None means required to the parser.
+>       parsed = get_general_parameter('kpoint_weights', INPUT['COHP']['kpoint_weights'],
+                                       ['de', '0.02'], INPUT['COHP'].keys())
+
+tests/test_cohp_input.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+parameter_name = 'kpoint_weights', default = [<class 'float'>, -1, None]
+data = ['de', '0.02']
+parameter_names = dict_keys(['stru_file', 'atom_i_index', 'atom_j_index', 'atom_i_orbs', 'atom_j_orbs', 'method', 'spin', 'e_range', 'de', 'sigma', 'invert', 'shift_to_efermi', 'output_prefix', 'input_file', 'orbital_dir', 'kpoint_mode', 'kpoint_weights'])
+
+    def get_general_parameter(parameter_name: str, default: None, data: None, parameter_names=None):
+        """
+        Extract information with the parameter_name from data.
+    
+        Parameters:
+            parameter_name : parameter name, such as 'nspin'.
+            default : describe the type, size, and default value of the parameter, such as [str, 1, 'Auto'], or [str, 1, None].
+            data : save the list of parametes, such as ['nspin', '1', 'grid', '4', '4', '4'].
+        """
+        for index, value in enumerate(data):
+            if value == parameter_name:
+                if default[1] == 1:
+                    return default[0](data[index+1])
+                elif default[1] == -1:
+                    values = []
+                    known = set(parameter_names or [])
+                    for token in data[index + 1:]:
+                        if token in known:
+                            break
+                        values.append(default[0](token))
+                    if not values:
+                        if default[2] is None:
+                            raise KeyError('key parameter missing: ' + parameter_name)
+                        return default[2]
+                    if default[0] is str:
+                        return ','.join(values)
+                    return values
+                else:
+                    tem = []
+                    for i_size in range(default[1]):
+                        tem.append(default[0](data[index + 1 + i_size]))
+                    return tem
+    
+        if default[2] is None:
+>           raise KeyError('key parameter missing: ' + parameter_name)
+E           KeyError: 'key parameter missing: kpoint_weights'
+
+src/pyatb/io/input.py:107: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_cohp_input.py::test_omitted_cohp_kpoint_weights_use_uniform_default
+1 failed, 5 passed in 0.59s
