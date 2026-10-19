@@ -56,3 +56,11 @@ python -m pytest -q tests
 
 The test configuration replaces MPI/native solver interfaces with test doubles.
 Real execution evidence above uses the actual native extension, not those doubles.
+
+## Sidereus integration follow-up
+
+The same CSR change was integrated on `sidereus-adam@9655a85` as `d638031`.
+The integrated suite passed 47 tests including the native handedness regression;
+Forge's two-track consumption also passed. See
+[the integration and COHP review](SIDEREUS_CSR_COHP_REVIEW.md) for current identity,
+remaining wheel-build requirements, and COHP follow-up findings.

@@ -1,0 +1,10 @@
+{
+  "integration_base": "9655a85c6a881456947491523a367b7fd913a715",
+  "csr_commit": "d638031",
+  "reference_commit": "78b3628aa4bb137bb75f465b2b4ecc9aac8f9fb1",
+  "upstream_main": "80f7c2d89aaa8a736e4145f67a6e1d30c783be2d",
+  "eigen": "3147391d946bb4b6c68edd901f2add6ac1f31f8c",
+  "three_way_band_sha256": "3a41219dfb67c40ebe97b3d38153cff63cc2f9654b9e56ddb7c80483218451a3",
+  "cohp_source_unchanged": true,
+  "cohp_sha256": "67a10617d05672dd2674ce5c8aee0eb4ea32d9fa6f34da68181eac5594cccc9d"
+}

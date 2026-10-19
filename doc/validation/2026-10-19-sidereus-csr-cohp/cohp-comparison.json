@@ -1,0 +1,31 @@
+{
+  "reference_commit": "78b3628",
+  "pyatb_baseline": "9655a85",
+  "cases": {
+    "different_atoms": {
+      "pyatb_integrated_curve": 0.9999999998000002,
+      "reference_discrete_weight": 0.9999999999999998,
+      "pyatb_pair_factor": 2.0,
+      "header": "# energy_eV COHP",
+      "metadata_records_invert": false
+    },
+    "same_atom_disjoint_channels": {
+      "pyatb_integrated_curve": 0.5000000000000001,
+      "reference_discrete_weight": 0.9999999999999998,
+      "pyatb_pair_factor": 1.0,
+      "header": "# energy_eV COHP",
+      "metadata_records_invert": false
+    },
+    "inverted_output": {
+      "pyatb_integrated_curve": -0.9999999998000002,
+      "reference_discrete_weight": -0.9999999999999998,
+      "pyatb_pair_factor": 2.0,
+      "header": "# energy_eV COHP",
+      "metadata_records_invert": false
+    }
+  },
+  "lower_window_boundary": {
+    "nonzero_points": 0,
+    "state_weight": 1.0
+  }
+}
