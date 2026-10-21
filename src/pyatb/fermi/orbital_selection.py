@@ -11,6 +11,17 @@ L_MULTIPLICITY = {
     "g": 9,
 }
 SHELL_ORDER = ["s", "p", "d", "f", "g"]
+STRU_SECTION_HEADERS = {
+    "ABFS_ORBITAL",
+    "ATOMIC_POSITIONS",
+    "ATOMIC_SPECIES",
+    "LATTICE_CONSTANT",
+    "LATTICE_CONSTANT_UNIT",
+    "LATTICE_VECTORS",
+    "NUMERICAL_DESCRIPTOR",
+    "NUMERICAL_ORBITAL",
+    "PAW_FILES",
+}
 
 
 @dataclass(frozen=True)
@@ -51,7 +62,7 @@ def _section_lines(lines, section_name):
             section = []
             for next_line in lines[index + 1:]:
                 clean = _strip_comment(next_line)
-                if clean and re.match(r"^[A-Z_]+$", clean):
+                if clean and clean.upper() in STRU_SECTION_HEADERS:
                     break
                 if clean:
                     section.append(clean)
